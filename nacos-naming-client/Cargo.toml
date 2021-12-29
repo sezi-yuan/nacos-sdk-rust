@@ -1,0 +1,26 @@
+[package]
+name = "nacos-naming-client"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+thiserror = "1"
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+reqwest = { version = "0", features = ["json"] }
+uuid = { version = "0", features = ["v4"] }
+tokio = { version = "1", features = ["full"] }
+serde_urlencoded = "0.7"
+serde_json = "1"
+flate2 = { version = "1", features = ["zlib"], default-features = false }
+prometheus = { version = "0" }
+lazy_static = "1"
+nacos-sdk-core = { version = "0.1.0", path = "../nacos-sdk-core" }
+async-trait = "0"
+rand = "0"
+local-ip-address = "0"
+itertools = "0"
+[dev-dependencies]
+env_logger = "0.9"
