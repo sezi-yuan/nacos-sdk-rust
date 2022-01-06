@@ -6,7 +6,7 @@ use crate::{
     error::Result, 
     data::{
         ServiceHolder, HeartBeatReactor, 
-        model::*, ServiceChangeListener, 
+        model::*, ServiceChangeListener, AccessTokenHolder, 
     }, util, HttpNamingRemote
 };
 
@@ -14,11 +14,23 @@ pub struct NamingClient<R: NamingRemote> {
     config: NamingConfig,
     remote: R,
     service_holder: ServiceHolder,
+    token_holder: AccessTokenHolder<R>,
     beat_reactor: HeartBeatReactor<R>
 }
 
+impl<R: NamingRemote> NamingClient<R> {
+
+    pub fn get_group(&self) -> &str {
+        self.config.group.as_str()
+    }
+
+    pub fn get_cluster(&self) -> &str {
+        self.config.cluster.as_str()
+    }
+}
+
 impl NamingClient<HttpNamingRemote> {
-    pub async fn new(config: NamingConfig) -> Self {
+    pub async fn new_http(config: NamingConfig) -> Self {
         let service_holder = match ServiceHolder::new(
             config.cache_dir.as_str(), config.update_when_empty, config.load_at_start
         ).await {
@@ -31,22 +43,28 @@ impl NamingClient<HttpNamingRemote> {
         }
         let remote = HttpNamingRemote::new(server_list, service_holder.clone()).await;
         let beat_reactor = HeartBeatReactor::new(remote.clone());
+        let token_holder = AccessTokenHolder::new(
+            remote.clone(), config.user_name.clone(), config.password.clone()
+        ).await;
+
         Self {
-            config, remote, service_holder, beat_reactor
+            config, remote, service_holder, token_holder, beat_reactor
         }
     }
 
     pub async fn shutdown(&self) {
         self.remote.shutdown().await;
-        self.beat_reactor.shutdown().await
+        self.beat_reactor.shutdown().await;
+        self.token_holder.shutdown()
     }
 }
 
-impl<R: NamingRemote+Clone+Send+'static> NamingClient<R> {
+
+impl<R: NamingRemote + Clone + Send + 'static> NamingClient<R> {
     /// register a instance
     pub async fn register_instance(&self, ins: Instance) -> Result<()> {
         let namespace_id = self.config.namespace_id.as_str();
-        self.remote.register_instance(namespace_id, ins.clone()).await?;
+        self.remote.register_instance(namespace_id, self.token_holder.get_token().await, ins.clone()).await?;
         self.beat_reactor.add_task(namespace_id, ins).await
     }
 
@@ -54,7 +72,7 @@ impl<R: NamingRemote+Clone+Send+'static> NamingClient<R> {
     pub async fn deregister_instance(&self, instance: Instance) -> Result<()> {
         let namespace_id = self.config.namespace_id.as_str();
         self.beat_reactor.remove_task(namespace_id, instance.clone()).await;
-        self.remote.deregister_instance(namespace_id, instance).await
+        self.remote.deregister_instance(namespace_id, self.token_holder.get_token().await, instance).await
     }
 
     /// Get all instances within specified clusters of a service.
@@ -79,7 +97,7 @@ impl<R: NamingRemote+Clone+Send+'static> NamingClient<R> {
             Some(info) => info,
             None => {
                 let info = self.remote.query_instances(
-                    namespace_id, service_name.to_string(), cluster_vec, false
+                    namespace_id, self.token_holder.get_token().await, service_name.to_string(), cluster_vec, false
                 ).await?;
                 self.service_holder.update_service_info(info).await;
                 self.service_holder.get_service_info(
@@ -89,7 +107,9 @@ impl<R: NamingRemote+Clone+Send+'static> NamingClient<R> {
         };
 
         let ret = service_info.hosts.into_iter()
-            .filter(|host| host.healthy == healthy)
+            .filter(|host| {
+                if healthy { host.healthy } else { true }
+            })
             .filter(|host| host.enabled)
             .filter(|host| host.weight > 0f64)
             .collect::<Vec<_>>();
@@ -110,7 +130,7 @@ impl<R: NamingRemote+Clone+Send+'static> NamingClient<R> {
             service_name, group_name
         );
         let cluster_vec = clusters.as_ref();
-        self.remote.subscribe(namespace_id, service_name.as_str(), cluster_vec).await?;
+        self.remote.subscribe(namespace_id, self.token_holder.get_token().await, service_name.as_str(), cluster_vec).await?;
 
         self.service_holder.register_subscribe(
             service_name,
@@ -132,6 +152,6 @@ impl<R: NamingRemote+Clone+Send+'static> NamingClient<R> {
             service_name, group_name
         );
         let cluster_vec = clusters.as_ref();
-        self.remote.unsubscribe(namespace_id, service_name.as_str(), cluster_vec).await
+        self.remote.unsubscribe(namespace_id, self.token_holder.get_token().await, service_name.as_str(), cluster_vec).await
     }
 }

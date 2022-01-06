@@ -8,11 +8,34 @@ fn bool_default() -> bool {
     false
 }
 
+
+#[derive(Debug, Serialize)]
+pub struct BeatInfo {
+    pub ip: String,
+    pub port: u16,
+    pub weight: f64,
+    pub service_name: String,
+    pub cluster: String,
+    pub metadata: HashMap<String, String>
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")] 
+pub struct BeatRequest {
+    pub namespace_id: String,
+    pub service_name: String,
+    pub beat: String,
+    #[serde(skip_serializing)]
+    pub beat_info: BeatInfo,
+    #[serde(skip_serializing)]
+    pub period: Duration
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")] 
 pub struct Token {
     pub access_token: String,
-    pub token_ttl: u32
+    pub token_ttl: u64
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -84,6 +107,18 @@ pub struct BeatAck {
 pub struct ServiceList {
     count: u64,
     doms: Vec<String>
+}
+
+impl Default for Token {
+    fn default() -> Self {
+        Token { access_token: "".to_owned(), token_ttl: 0 }
+    }
+}
+
+impl Token {
+    pub fn valid(&self) -> bool {
+        self.token_ttl > 10000
+    }
 }
 
 impl Instance {

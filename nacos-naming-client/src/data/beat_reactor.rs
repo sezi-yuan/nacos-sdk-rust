@@ -1,6 +1,5 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use serde::Serialize;
 use tokio::sync::{Mutex, mpsc};
 
 use crate::{
@@ -8,29 +7,8 @@ use crate::{
     error::Result
 };
 
-use super::model::Instance;
+use super::model::{Instance, BeatInfo, BeatRequest};
 
-#[derive(Debug, Serialize)]
-struct BeatInfo {
-    pub ip: String,
-    pub port: u16,
-    pub weight: f64,
-    pub service_name: String,
-    pub cluster: String,
-    pub metadata: HashMap<String, String>
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")] 
-struct BeatRequest {
-    pub namespace_id: String,
-    pub service_name: String,
-    pub beat: String,
-    #[serde(skip_serializing)]
-    pub beat_info: BeatInfo,
-    #[serde(skip_serializing)]
-    pub period: Duration
-}
 
 /// 心跳检测
 pub struct HeartBeatReactor<R: NamingRemote> {

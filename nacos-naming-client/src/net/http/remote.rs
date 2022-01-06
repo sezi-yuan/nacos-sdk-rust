@@ -4,7 +4,7 @@ use crate::{
     net::NamingRemote,
     error::Result, 
     data::{
-        model::{Instance, ServiceInfo, Service, ExpressionSelector, Token, BeatAck}, 
+        model::{Instance, ServiceInfo, Service, ExpressionSelector, Token, BeatAck, BeatRequest}, 
         ServiceHolder
     }, util
 };
@@ -31,6 +31,8 @@ struct Login<'a> {
 #[serde(rename_all = "camelCase")] 
 struct RegisterRequest {
     pub namespace_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access_token: Option<String>,
     pub service_name: String,
     pub group_name: String,
     pub cluster_name: String,
@@ -51,6 +53,8 @@ struct RegisterRequest {
 #[serde(rename_all = "camelCase")] 
 struct DeregisterRequest {
     pub namespace_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access_token: Option<String>,
     pub service_name: String,
     pub cluster_name: String,
     pub ip: String,
@@ -63,6 +67,8 @@ struct DeregisterRequest {
 #[serde(rename_all = "camelCase")] 
 pub struct QueryInstanceRequest {
     pub namespace_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access_token: Option<String>,
     pub service_name: String,
     pub group_name: String,
     /// cluster information of instance.
@@ -77,6 +83,8 @@ pub struct QueryInstanceRequest {
 #[serde(rename_all = "camelCase")] 
 struct QueryServiceRequest {
     pub namespace_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access_token: Option<String>,
     pub service_name: String
 }
 
@@ -84,6 +92,8 @@ struct QueryServiceRequest {
 #[serde(rename_all = "camelCase")] 
 pub struct ServiceListRequest {
     pub namespace_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access_token: Option<String>,
     pub group_name: String,
     pub page_size: u32,
     pub page_no: u32,
@@ -136,24 +146,25 @@ impl NamingRemote for HttpNamingRemote {
         ).await
     }
     /// 注册服务实例
-    async fn register_instance(&self, namespace_id: &str, instance: Instance) -> Result<()> {
+    async fn register_instance(&self, namespace_id: &str, token: Option<String>, instance: Instance) -> Result<()> {
         self.client.request_str(
             &self.address,
             INSTANCE_PATH,
             Method::POST, 
-            &RegisterRequest::from_instance(namespace_id.to_string(), instance),
+            &RegisterRequest::from_instance(namespace_id.to_string(), token, instance),
         )
         .await
         .map(|_| ())
     }
     /// 注销服务实例
-    async fn deregister_instance(&self, namespace_id: &str, instance: Instance) -> Result<()> {
+    async fn deregister_instance(&self, namespace_id: &str, token: Option<String>, instance: Instance) -> Result<()> {
         self.client.request_str(
             &self.address,
             INSTANCE_PATH,
             Method::DELETE, 
             &DeregisterRequest {
                 namespace_id: namespace_id.to_string(),
+                access_token: token,
                 service_name: instance.service_name,
                 cluster_name: instance.cluster_name,
                 ip: instance.ip,
@@ -165,19 +176,23 @@ impl NamingRemote for HttpNamingRemote {
         .map(|_| ())
     }
     /// 更新实例信息
-    async fn update_instance(&self, namespace_id: &str, instance: Instance) -> Result<()> {
+    async fn update_instance(
+        &self, namespace_id: &str, token: Option<String>, instance: Instance
+    ) -> Result<()> {
         self.client.request_str(
             &self.address,
             INSTANCE_PATH,
             Method::PUT, 
-            &RegisterRequest::from_instance(namespace_id.to_string(), instance),
+            &RegisterRequest::from_instance(namespace_id.to_string(), token, instance),
         )
         .await
         .map(|_| ())
     }
     /// 查找实例
     async fn query_instances(
-        &self, namespace_id: &str, service_name: String, 
+        &self, namespace_id: &str, 
+        token: Option<String>, 
+        service_name: String, 
         clusters: &[&str], healthy_only: bool
     ) -> Result<ServiceInfo> {
         let clusters = clusters.iter().join(",");
@@ -187,6 +202,7 @@ impl NamingRemote for HttpNamingRemote {
             Method::GET, 
             &QueryInstanceRequest {
                 namespace_id: namespace_id.to_string(),
+                access_token: token,
                 service_name,
                 //TODO fixme
                 group_name: "DEFAULT_GROUP".to_owned(),
@@ -204,13 +220,17 @@ impl NamingRemote for HttpNamingRemote {
     /// 删除服务
     //fn delete_service(&self);
     /// 查找服务
-    async fn query_service(&self, namespace_id: &str, service_name: String) -> Result<Service> {
+    async fn query_service(
+        &self, namespace_id: &str, 
+        token: Option<String>, service_name: String
+    ) -> Result<Service> {
         self.client.request_json(
             &self.address,
             SERVICE_PATH,
             Method::GET, 
             &QueryServiceRequest {
                 namespace_id: namespace_id.to_string(),
+                access_token: token,
                 service_name
             }
         ).await
@@ -219,7 +239,9 @@ impl NamingRemote for HttpNamingRemote {
     /// 查找所有服务
     async fn query_all_service(
         &self, 
-        namespace_id: &str, group_name: &str, 
+        namespace_id: &str, 
+        token: Option<String>,
+        group_name: &str, 
         selector: Option<ExpressionSelector>, 
         page_num: u32, page_size: u32
     ) -> Result<Vec<Service>> {
@@ -232,6 +254,7 @@ impl NamingRemote for HttpNamingRemote {
             Method::GET, 
             &ServiceListRequest {
                 namespace_id: namespace_id.to_string(),
+                access_token: token,
                 group_name: group_name.to_string(),
                 page_no: page_num,
                 page_size,
@@ -240,7 +263,7 @@ impl NamingRemote for HttpNamingRemote {
         ).await
     }
 
-    async fn beat<B: Serialize + Send + Sync>(&self, info: B) -> Result<BeatAck> {
+    async fn beat(&self, info: &BeatRequest) -> Result<BeatAck> {
         self.client.request_json(
             &self.address,
             format!("{}/{}", INSTANCE_PATH, "beat").as_str(),
@@ -251,25 +274,27 @@ impl NamingRemote for HttpNamingRemote {
 
     /// 订阅服务信息变化通知
     async fn subscribe(
-        &self, namespace_id: &str, service_name: &str, clusters: &[&str]
+        &self, namespace_id: &str, token: Option<String>,
+        service_name: &str, clusters: &[&str]
     ) -> Result<()> {
-        self.query_instances(namespace_id, service_name.to_string(), clusters, false)
+        self.query_instances(namespace_id, token, service_name.to_string(), clusters, false)
         .await
         .map(|_| ())
     }
     
     /// 退订服务信息变化通知
     async fn unsubscribe(
-        &self, _: &str, _: &str, _: &[&str]
+        &self, _: &str, _: Option<String>, _: &str, _: &[&str]
     ) -> Result<()> {
         Ok(())
     }
 }
 
 impl RegisterRequest {
-    fn from_instance(namespace_id: String, instance: Instance) -> RegisterRequest {
+    fn from_instance(namespace_id: String, access_token: Option<String>, instance: Instance) -> RegisterRequest {
         RegisterRequest {
             namespace_id,
+            access_token,
             service_name: instance.service_name,
             group_name: instance.group_name,
             cluster_name: instance.cluster_name,

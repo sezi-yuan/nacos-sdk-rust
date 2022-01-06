@@ -1,7 +1,6 @@
 pub struct ServerConfig {
     scheme: String,
-    ip: String,
-    port: u16,
+    address: String,
     context_path: String
 }
 
@@ -12,19 +11,20 @@ pub struct NamingConfig {
     pub server_list: Vec<ServerConfig>,
     pub cache_dir: String,
     pub load_at_start: bool,
-    pub update_when_empty: bool
+    pub update_when_empty: bool,
+    pub user_name: Option<String>,
+    pub password: Option<String>
 }
 
 impl ServerConfig {
     pub fn to_string(&self) -> String {
-        format!("{}://{}:{}/{}", self.scheme, self.ip, self.port, self.context_path)
+        format!("{}://{}/{}", self.scheme, self.address, self.context_path)
     }
 
-    pub fn new(scheme: String, ip: String, port: u16, context_path: String) -> Self {
+    pub fn new(scheme: String, address: String, context_path: String) -> Self {
         ServerConfig {
             scheme, 
-            ip,
-            port, 
+            address,
             context_path
         }
     }
