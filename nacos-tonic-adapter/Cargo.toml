@@ -1,0 +1,19 @@
+[package]
+name = "nacos-tonic-adapter"
+version = "0.1.0"
+edition = "2021"
+repository = "https://github.com/sezi-yuan/nacos-sdk-rust"
+description = "nacos client rust implement"
+license = "MIT/Apache-2.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+async-trait = "0"
+async_once = "0"
+tonic = { version = "0" }
+tokio = { version = "1" }
+lazy_static = "1"
+tower = { version = "0.4.4", features = ["discover"] }
+nacos-naming-client = { version = "0.1.0", path = "../nacos-naming-client" }
