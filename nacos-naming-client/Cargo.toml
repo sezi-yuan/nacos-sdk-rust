@@ -1,6 +1,6 @@
 [package]
 name = "nacos-naming-client"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 repository = "https://github.com/sezi-yuan/nacos-sdk-rust"
 description = "nacos client rust implement"
