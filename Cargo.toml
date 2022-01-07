@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "nacos-sdk-core",
+    "nacos-tonic-adapter",
     "nacos-naming-client",
     "nacos-config-client",
     "nacos-client"

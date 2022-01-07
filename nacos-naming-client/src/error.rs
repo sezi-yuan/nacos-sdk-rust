@@ -1,8 +1,9 @@
 use reqwest::StatusCode;
-use serde::{Serialize, Deserialize};
+use serde_repr::*;
 use thiserror::Error;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize_repr, Deserialize_repr)]
+#[repr(u32)]
 pub enum RespCode {
     Ok = 10200,
     ResourceNotFound = 20404,

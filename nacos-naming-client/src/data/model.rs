@@ -96,10 +96,11 @@ pub struct ServiceInfo {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")] 
+#[serde(rename_all = "camelCase")]
 pub struct BeatAck {
     pub client_beat_interval: u64,
-    pub code: Option<RespCode>
+    pub code: Option<RespCode>,
+    pub light_beat_enabled: Option<bool>
 }
 
 #[derive(Debug, Deserialize)]

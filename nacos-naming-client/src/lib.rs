@@ -18,7 +18,7 @@ mod test {
 
     use crate::{
         NamingClient, config::{NamingConfig, ServerConfig}, constants, 
-        error::Result
+        error::Result, model::Instance
     };
 
     fn init_logger() {
@@ -39,7 +39,7 @@ mod test {
             cluster: constants::DEFAULT_CLUSTER.to_owned(),
             group: constants::DEFAULT_GROUP.to_owned(),
             server_list: vec![ServerConfig::new(
-                "http".to_string(), "console.nacos.io".to_string(), "nacos".to_string()
+                "http".to_string(), "192.168.1.230:30000".to_string(), "nacos".to_string()
             )],
             cache_dir: "/workspaces/nacos-sdk-rust/output/failover".to_owned(),
             load_at_start: false,
@@ -49,9 +49,9 @@ mod test {
         };
         let client = NamingClient::new_http(config).await;
         
-        //client.register_instance(Instance::new_with_defaults("test", "192.168.1.221", 8888)).await?;
-        let instances = client.select_instances("c3", "DEFAULT_GROUP", vec!["DEFAULT"], false).await?;
-        println!("server data => \n{:?}", instances);
+        client.register_instance(Instance::new_with_defaults("test", "192.168.1.221", 8888)).await?;
+        //let instances = client.select_instances("c4", "DEFAULT_GROUP", vec!["DEFAULT"], false).await?;
+        //println!("server data => \n{:?}", instances);
         tokio::time::sleep(Duration::from_secs(60 * 5)).await;
 
         Ok(())
