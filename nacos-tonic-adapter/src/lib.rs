@@ -27,7 +27,7 @@ async fn gen_client_from_env() -> NamingClient<HttpNamingRemote> {
     let cluster = var("NACOS_CLUSTER").unwrap_or(constants::DEFAULT_CLUSTER.to_owned());
     let server_schema = var("NACOS_SERVER_SCHEMA").unwrap_or(constants::DEFAULT_SERVER_SCHEMA.to_owned());
     let server_context = var("NACOS_SERVER_CONTEXT").unwrap_or(constants::DEFAULT_SERVER_CONTEXT.to_owned());
-     let servers = var("NACOS_SERVER_ADDRS").expect("env NACOS_SERVERS is empty")
+     let servers = var("NACOS_SERVER_ADDRS").expect("env NACOS_SERVER_ADDRS is empty")
         .split(",")
         .map(|server| ServerConfig::new(server_schema.clone(), server.to_string(), server_context.clone()))
         .collect::<Vec<_>>();
