@@ -7,7 +7,7 @@ pub use http::HttpNamingRemote;
 
 /// 所有操作instance的service_name都是包含group信息的service_name: {group}@@{name}
 #[async_trait]
-pub trait NamingRemote {
+pub trait NamingRemote: Send + Sync {
     /// 登录到nacos，获取accessKey
     async fn login(&self, username: &str, password: &str) -> Result<Token>;
     /// 注册服务实例

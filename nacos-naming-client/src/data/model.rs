@@ -10,6 +10,7 @@ fn bool_default() -> bool {
 
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")] 
 pub struct BeatInfo {
     pub ip: String,
     pub port: u16,
@@ -23,6 +24,8 @@ pub struct BeatInfo {
 #[serde(rename_all = "camelCase")] 
 pub struct BeatRequest {
     pub namespace_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access_token: Option<String>,
     pub service_name: String,
     pub beat: String,
     #[serde(skip_serializing)]

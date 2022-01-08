@@ -6,7 +6,7 @@ use crate::net::NamingRemote;
 
 use super::model::Token;
 
-
+#[derive(Clone)]
 pub struct AccessTokenHolder<R:NamingRemote> {
     user_name: Option<String>,
     password: Option<String>,
@@ -14,6 +14,7 @@ pub struct AccessTokenHolder<R:NamingRemote> {
     token: Arc<Mutex<Token>>,
     shutdown: broadcast::Sender<()>
 }
+
 
 impl<R: NamingRemote + Send + Clone + 'static> AccessTokenHolder<R> {
     pub async fn new(remote: R, user_name: Option<String>, password: Option<String>) -> Self {

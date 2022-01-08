@@ -3,6 +3,7 @@ nacos client for rust
 
 ## TODO
 - accessToken done
-- tonic-nacos-discover
+- tonic-adpater done
 - nacos-config
 - nacos-server-manager
+- http light beat

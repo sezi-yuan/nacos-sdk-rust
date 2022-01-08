@@ -1,6 +1,6 @@
 [package]
 name = "nacos-tonic-adapter"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 repository = "https://github.com/sezi-yuan/nacos-sdk-rust"
 description = "nacos client rust implement"
@@ -16,4 +16,4 @@ tonic = { version = "0" }
 tokio = { version = "1" }
 lazy_static = "1"
 tower = { version = "0.4.4", features = ["discover"] }
-nacos-naming-client = { version = "0.1.1", path = "../nacos-naming-client" }
+nacos-naming-client = { version = "0.1.2", path = "../nacos-naming-client" }

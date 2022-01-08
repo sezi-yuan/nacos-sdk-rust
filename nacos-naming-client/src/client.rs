@@ -42,11 +42,10 @@ impl NamingClient<HttpNamingRemote> {
             server_list.push(server.to_string());
         }
         let remote = HttpNamingRemote::new(server_list, service_holder.clone()).await;
-        let beat_reactor = HeartBeatReactor::new(remote.clone());
         let token_holder = AccessTokenHolder::new(
             remote.clone(), config.user_name.clone(), config.password.clone()
         ).await;
-
+        let beat_reactor = HeartBeatReactor::new(remote.clone(), token_holder.clone());
         Self {
             config, remote, service_holder, token_holder, beat_reactor
         }

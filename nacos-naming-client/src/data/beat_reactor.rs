@@ -7,20 +7,22 @@ use crate::{
     error::Result
 };
 
-use super::model::{Instance, BeatInfo, BeatRequest};
+use super::{model::{Instance, BeatInfo, BeatRequest}, AccessTokenHolder};
 
 
 /// 心跳检测
 pub struct HeartBeatReactor<R: NamingRemote> {
     remote: R,
     task_map: Arc<Mutex<HashMap<String, mpsc::Sender<()>>>>,
+    token_holder: AccessTokenHolder<R>
 }
 
-impl<R: NamingRemote + Clone + Send + 'static> HeartBeatReactor<R> {
+impl<R: NamingRemote + Clone + 'static> HeartBeatReactor<R> {
 
-    pub fn new(remote: R) -> Self {
+    pub fn new(remote: R, token_holder: AccessTokenHolder<R>) -> Self {
         HeartBeatReactor {
             remote,
+            token_holder,
             task_map: Arc::new(Mutex::new(HashMap::new()))
         }
     }
@@ -52,15 +54,17 @@ impl<R: NamingRemote + Clone + Send + 'static> HeartBeatReactor<R> {
         };
         let mut request = BeatRequest {
             namespace_id: namespace_id.to_string(),
+            access_token: self.token_holder.get_token().await,
             service_name: instance.service_name,
             beat: serde_json::to_string(&beat_info).expect("beat_info can not serialize"),
             beat_info,
             period: Duration::from_secs(5)
         };
-
+        let token_holder = self.token_holder.clone();
         let remote = self.remote.clone();
         tokio::spawn(async move {
             loop {
+                request.access_token = token_holder.get_token().await;
                 let res = tokio::select!{
                     res = remote.beat(&request) => res,
                     _ = rx.recv() => break
@@ -69,7 +73,7 @@ impl<R: NamingRemote + Clone + Send + 'static> HeartBeatReactor<R> {
                 match res {
                     Err(err) => log::error!("[beat] failed to send beat, cause: {}", err),
                     Ok(ack) => {
-                        request.period = Duration::from_millis(ack.client_beat_interval);
+                        request.period = Duration::from_millis(ack.client_beat_interval - 2000);
                     }
                 }
                 log::debug!(

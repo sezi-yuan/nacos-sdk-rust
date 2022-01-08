@@ -52,7 +52,7 @@ mod test {
         client.register_instance(Instance::new_with_defaults("test", "192.168.1.221", 8888)).await?;
         //let instances = client.select_instances("c4", "DEFAULT_GROUP", vec!["DEFAULT"], false).await?;
         //println!("server data => \n{:?}", instances);
-        tokio::time::sleep(Duration::from_secs(60 * 5)).await;
+        tokio::time::sleep(Duration::from_secs(60 * 10)).await;
 
         Ok(())
     }
