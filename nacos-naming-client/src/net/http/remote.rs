@@ -125,7 +125,7 @@ impl HttpNamingRemote {
             receiver: Arc::new(Mutex::new(receiver)),
             receiver_port: udp_port,
             service_holder,
-            client_ip: util::local_ip()
+            client_ip: util::local_ip().to_string()
         }
     }
 
