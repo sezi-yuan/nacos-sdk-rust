@@ -6,7 +6,7 @@ use crate::{
     data::{
         model::{Instance, ServiceInfo, Service, ExpressionSelector, Token, BeatAck, BeatRequest}, 
         ServiceHolder
-    }, util
+    }
 };
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -119,14 +119,22 @@ impl HttpNamingRemote {
         let udp_port = rand::random::<u16>() % 1000 + 54951;
         let receiver = PushReceiver::new(udp_port, service_holder.clone()).await;
 
-        Self {
+        let remote = Self {
             client: HttpClient::new(),
             address: addresses,
             receiver: Arc::new(Mutex::new(receiver)),
             receiver_port: udp_port,
             service_holder,
-            client_ip: util::local_ip().to_string()
-        }
+            client_ip: local_ipaddress::get().unwrap()
+        };
+
+        log::info!(
+            "http naming remote, server_address: {:?}, local_ip: {}, receiver_port: {}", 
+            remote.address,
+            remote.client_ip,
+            remote.receiver_port
+        );
+        remote
     }
 
     pub async fn shutdown(&self) {
