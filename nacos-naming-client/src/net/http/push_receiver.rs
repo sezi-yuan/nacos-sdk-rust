@@ -79,13 +79,16 @@ impl PushReceiver {
             res = sock.recv_from(buf) => res,
             _ = signal.recv() => return None
         };
-
+        
         match res {
             Err(err) => {
                 log::warn!("receive illegal push message: {}", err);
                 None
             },
-            Ok(data) => Some(data)
+            Ok((size, socket)) => {
+                log::debug!("read data:{} bytes from udp socket: {:?}", size, socket);
+                Some((size, socket))
+            }
         }
     }
 
