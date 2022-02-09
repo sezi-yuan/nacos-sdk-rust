@@ -7,7 +7,7 @@ use crate::net::NamingRemote;
 use super::model::Token;
 
 #[derive(Clone)]
-pub struct AccessTokenHolder<R:NamingRemote> {
+pub struct AccessTokenHolder<R:NamingRemote + Sized> {
     user_name: Option<String>,
     password: Option<String>,
     remote: R,
@@ -15,6 +15,19 @@ pub struct AccessTokenHolder<R:NamingRemote> {
     shutdown: broadcast::Sender<()>
 }
 
+impl<R: NamingRemote> AccessTokenHolder<R> {
+    pub async fn get_token(&self) -> Option<String> {
+        let token = self.token.lock().await;
+        if token.valid() {
+            Some(token.access_token.to_string())
+        } else {
+            None
+        }
+    }
+    pub fn shutdown(&self) {
+        let _ = self.shutdown.send(());
+    }
+}
 
 impl<R: NamingRemote + Send + Clone + 'static> AccessTokenHolder<R> {
     pub async fn new(remote: R, user_name: Option<String>, password: Option<String>) -> Self {
@@ -60,19 +73,6 @@ impl<R: NamingRemote + Send + Clone + 'static> AccessTokenHolder<R> {
             self.user_name.clone().expect("[token:userName]never happen"), 
             self.password.clone().expect("[token:password]never happen")
         ));
-    }
-
-    pub fn shutdown(&self) {
-        let _ = self.shutdown.send(());
-    }
-
-    pub async fn get_token(&self) -> Option<String> {
-        let token = self.token.lock().await;
-        if token.valid() {
-            Some(token.access_token.to_string())
-        } else {
-            None
-        }
     }
 }
 

@@ -126,6 +126,9 @@ impl Token {
 }
 
 impl Instance {
+    pub fn key(&self) -> String {
+        format!("{}:{}", self.ip, self.port)
+    }
 
     pub fn new_with_defaults(service_name: &str, ip: &str, port: u16) -> Instance {
         Self::new_with_required(

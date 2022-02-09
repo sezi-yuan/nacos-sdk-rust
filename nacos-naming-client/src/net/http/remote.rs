@@ -1,11 +1,11 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use crate::{
     net::NamingRemote,
     error::Result, 
     data::{
         model::{Instance, ServiceInfo, Service, ExpressionSelector, Token, BeatAck, BeatRequest}, 
-        ServiceHolder
+        ServiceHolder, AccessTokenHolder
     }
 };
 use async_trait::async_trait;
@@ -281,13 +281,32 @@ impl NamingRemote for HttpNamingRemote {
     }
 
     /// 订阅服务信息变化通知
-    async fn subscribe(
-        &self, namespace_id: &str, token: Option<String>,
+    async fn subscribe<R: NamingRemote + 'static>(
+        &self, namespace_id: &str, token: AccessTokenHolder<R>,
         service_name: &str, clusters: &[&str]
     ) -> Result<()> {
-        self.query_instances(namespace_id, token, service_name.to_string(), clusters, false)
-        .await
-        .map(|_| ())
+        let remote = self.clone();
+        let namespace_id = namespace_id.to_string();
+        let service_name = service_name.to_string();
+        let cluster_vec = clusters.iter().map(|cluster| cluster.to_string()).collect::<Vec<_>>();
+        tokio::spawn(async move {
+            let clusters = &cluster_vec.iter().map(|cluster| cluster.as_str()).collect::<Vec<_>>()[..];
+            loop {
+                let myabe_token = token.get_token().await;
+                let service_info = remote.query_instances(
+                    namespace_id.as_str(), myabe_token, service_name.clone(), clusters, false
+                ).await;
+                match service_info {
+                    Ok(info) => remote.service_holder.update_service_info(info).await,
+                    Err(error) => log::error!("failed to subscribe service: {}; cause: {}", service_name, error)
+                }
+                log::debug!("wait for next query: {}", service_name);
+                tokio::time::sleep(Duration::from_secs(9)).await;
+                log::debug!("continue to query: {}", service_name);
+
+            }
+        });
+        Ok(())
     }
     
     /// 退订服务信息变化通知

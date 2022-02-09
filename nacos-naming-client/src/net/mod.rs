@@ -1,3 +1,4 @@
+use crate::data::AccessTokenHolder;
 use crate::data::model::{Instance, ExpressionSelector, Service, ServiceInfo, Token, BeatAck, BeatRequest};
 use crate::error::Result;
 use async_trait::async_trait;
@@ -40,8 +41,9 @@ pub trait NamingRemote: Send + Sync {
     async fn beat(&self, info: &BeatRequest) -> Result<BeatAck>;
 
     /// 订阅服务信息变化通知
-    async fn subscribe(
-        &self, namespace_id: &str, token: Option<String>, service_name: &str, clusters: &[&str]
+    /// 在httpRemote中因为需要轮询请求服务端保持udp端口在线，而token则可能变动，所以需要把token_holder传进去
+    async fn subscribe<R: NamingRemote + 'static>(
+        &self, namespace_id: &str, token: AccessTokenHolder<R>, service_name: &str, clusters: &[&str]
     ) -> Result<()>;
     
     /// 退订服务信息变化通知

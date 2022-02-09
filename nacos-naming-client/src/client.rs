@@ -129,7 +129,7 @@ impl<R: NamingRemote + Clone + Send + 'static> NamingClient<R> {
             service_name, group_name
         );
         let cluster_vec = clusters.as_ref();
-        self.remote.subscribe(namespace_id, self.token_holder.get_token().await, service_name.as_str(), cluster_vec).await?;
+        self.remote.subscribe(namespace_id, self.token_holder.clone(), service_name.as_str(), cluster_vec).await?;
 
         self.service_holder.register_subscribe(
             service_name,

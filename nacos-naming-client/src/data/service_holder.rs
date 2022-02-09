@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc, path::{Path, PathBuf}};
 use itertools::Itertools;
 use tokio::sync::Mutex;
 
-use crate::error::{Error, Result};
+use crate::{error::{Error, Result}, model::Instance};
 
 use super::{model::ServiceInfo, ServiceChangeListener};
 
@@ -64,13 +64,15 @@ impl ServiceHolder {
         service_info: ServiceInfo
     ) {
         let key = service_info.get_key();
-        self.service_map.lock().await.insert(key.clone(), service_info.clone());
+        let old = self.service_map.lock().await.insert(key.clone(), service_info.clone());
+        let push_instance = Self::diff_instance(old.map(|x|x.hosts), service_info.hosts.clone());
         let mut callbacks = self.callbacks.lock().await;
         let maybe_callbacks = callbacks.get_mut(key.as_str());
         let mut default = vec![];
         let vec = maybe_callbacks.unwrap_or(&mut default);
         for listener in vec {
-            listener.changed(service_info.clone()).await
+            listener.changed(key.as_str(), push_instance.clone()).await;
+            log::debug!("service change has been notified: {}", key.as_str());
         }
         let result = nacos_sdk_core::cache::write_file(
             &service_info, self.cache_dir.clone(), key.as_str()
@@ -79,6 +81,42 @@ impl ServiceHolder {
         if let Err(error) = result {
             log::warn!("can not write service_info cache to disk: {}", error);
         }
+        log::debug!("service change has write to disk successed: {}", service_info.service_name);
+    }
+
+    fn diff_instance(old: Option<Vec<Instance>>, mut new: Vec<Instance>) -> Vec<Instance> {
+        let old = match old {
+            None => return new,
+            Some(list) => list
+        };
+        if old.is_empty() {
+            return new;
+        }
+
+        for mut old_instance in old {
+            match Self::get_same_instance(&new, &old_instance) {
+                // 这里没有剔除已经在本地生效的instance
+                // 调用者应该做去重处理来避免把该instance的权重错误加重
+                None => {
+                    // 如果new中没有该instance但是old中有，那么应该设置为剔除
+                    old_instance.enabled = false;
+                    new.push(old_instance);
+                },
+                // 其他情况不处理
+                _ => {}
+            };
+        }
+
+        new
+    }
+
+    fn get_same_instance<'a>(new: &'a Vec<Instance>, old: &'a Instance) -> Option<&'a Instance> {
+        for item in new.iter() {
+            if item.key() == old.key() {
+                return Some(item)
+            }
+        }
+        None
     }
 
     pub async fn register_subscribe(

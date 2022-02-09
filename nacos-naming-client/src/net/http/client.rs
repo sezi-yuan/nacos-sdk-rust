@@ -28,9 +28,10 @@ impl HttpClient {
 
     fn default_headers() -> HeaderMap {
         let mut headers = HeaderMap::new();
-        let client_version = "Nacos-C-Client:v".to_string() + std::env!("CARGO_PKG_VERSION_MAJOR");
-        headers.insert("Client-Version", HeaderValue::try_from(client_version).expect("[default_header]never happen"));
-        headers.insert("User-Agent", HeaderValue::from_static("Nacos-C-Client:v0.1.5"));
+        let client_version = "Nacos-Go-Client:v".to_string() + std::env!("CARGO_PKG_VERSION");
+        let version_value = HeaderValue::try_from(client_version).expect("[default_header]never happen");
+        headers.insert("Client-Version", version_value.clone());
+        headers.insert("User-Agent", version_value);
         headers.insert("Accept-Encoding", HeaderValue::from_static("gzip,deflate,sdch"));
         headers.insert("Requester", HeaderValue::from_static("Keep-Alive"));
         headers.insert("Request-Module", HeaderValue::from_static("naming"));

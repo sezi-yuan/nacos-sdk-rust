@@ -1,6 +1,6 @@
 use nacos_naming_client:: {
     NamingClient, HttpNamingRemote, NamingConfig, constants, ServerConfig,
-    ServiceChangeListener, model::ServiceInfo, model::Instance,
+    ServiceChangeListener, model::Instance,
     error::Result
 };
 
@@ -67,9 +67,9 @@ struct ChangeListener {
 
 #[async_trait]
 impl ServiceChangeListener for ChangeListener {
-    async fn changed(&mut self, info: ServiceInfo) {
-        log::debug!("obtain service change from nacos: {:?}", info);
-        for mut instance in info.hosts {
+    async fn changed(&mut self, service_name: &str, hosts: Vec<Instance>) {
+        log::debug!("obtain service[{}] change from nacos: {:?}", service_name, hosts);
+        for mut instance in hosts {
             let port = instance.metadata.remove("gRPC_port").unwrap_or(instance.port.to_string());
             let endpoint = format!("{}://{}:{}", "http", instance.ip, port);
             let ep = Endpoint::from_shared(endpoint.clone());
@@ -86,9 +86,9 @@ impl ServiceChangeListener for ChangeListener {
                 Change::Remove(endpoint)
             };
 
-            let res = self.rx.send(change).await;
+            let res = self.rx.try_send(change);
             if let Err(error) = res {
-                log::error!("failed to modify service's[{}] endpoint list: {}", info.service_name, error)
+                log::error!("failed to modify service's[{}] endpoint list: {}", service_name, error)
             }
         }
     }
@@ -105,14 +105,6 @@ pub async fn gen_channel(service_name: &str) -> Channel {
         log::error!("failed to subscribe service change: {}", error);
         return channel;
     }
-    let resp = nacos_client.select_instances(
-        service_name, nacos_client.get_group(), vec![nacos_client.get_cluster()], true
-    ).await;
-
-    if let Err(error) = resp {
-        log::error!("failed to get instance of service: {}, cause: {}", service_name, error);
-    }
-
     channel
 }
 

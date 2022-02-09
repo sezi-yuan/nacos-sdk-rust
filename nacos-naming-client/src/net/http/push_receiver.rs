@@ -92,15 +92,39 @@ impl PushReceiver {
         }
     }
 
-    fn parse_packet(buf: &[u8], msg_len: usize) -> Option<PushPacket> {
-        let mut gz = GzDecoder::new(&buf[..msg_len]);
-        let mut buffer = String::new();
-        let _ = gz.read_to_string(&mut buffer);
+    fn is_gzip(buf: &[u8]) -> bool {
+        if buf.len() < 2 {
+            return false;
+        }
 
-        log::debug!("receive push message from nacos: {}", buffer);
-        match serde_json::from_str::<PushPacket>(buffer.trim()) {
+        (((buf[1] as u16) << 8) | buf[0] as u16) == 35615
+    }
+
+    fn parse_packet(buf: &[u8], msg_len: usize) -> Option<PushPacket> {
+        let data = if Self::is_gzip(buf) {
+            let mut gz = GzDecoder::new(&buf[..msg_len]);
+            let mut buffer = String::new();
+            match gz.read_to_string(&mut buffer).map(|_| buffer) {
+                Ok(data) => data,
+                Err(err) => {
+                    log::warn!("receive wrong format push message: {}", err);
+                    return None
+                }
+            }
+        } else {
+            match String::from_utf8(buf[..msg_len].to_vec()) {
+                Ok(data) => data,
+                Err(err) => {
+                    log::warn!("receive wrong format push message: {}", err);
+                    return None
+                }
+            }
+        };
+
+        log::debug!("receive push message from nacos: {}", data);
+        match serde_json::from_str::<PushPacket>(data.trim()) {
             Err(err) => {
-                log::warn!("receive illegal push message: {} \n{}", err, buffer);
+                log::warn!("receive illegal push message: {} \n{}", err, data);
                 None
             },
             Ok(data) => Some(data)
