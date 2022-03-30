@@ -1,6 +1,6 @@
 [package]
 name = "nacos-tonic-adapter"
-version = "0.1.16"
+version = "0.1.17"
 edition = "2021"
 repository = "https://github.com/sezi-yuan/nacos-sdk-rust"
 description = "nacos client rust implement"
