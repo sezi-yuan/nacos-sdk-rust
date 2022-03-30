@@ -17,7 +17,7 @@ use log;
 pub use nacos_naming_client::error;
 
 lazy_static! {
-    static ref NACOS_CLIENT: AsyncOnce<NamingClient<HttpNamingRemote>> = AsyncOnce::new(async {
+    pub static ref NACOS_CLIENT: AsyncOnce<NamingClient<HttpNamingRemote>> = AsyncOnce::new(async {
         gen_client_from_env().await
     });
 }
@@ -65,7 +65,6 @@ fn parse_bool_env(key: &str, default: bool) -> bool {
     }).unwrap_or(default)
 }
 struct ChangeListener {
-    rx: tokio::sync::mpsc::Sender<Change<String, Endpoint>>,
     queue: Arc<SegQueue<Change<String, Endpoint>>>,
 }
 
@@ -104,7 +103,7 @@ pub async fn gen_channel(service_name: &str) -> Channel {
     let nacos_client = NACOS_CLIENT.get().await;
     let (channel, rx) = Channel::balance_channel(1);
     let queue = Arc::new(SegQueue::new());
-    let listener = ChangeListener {rx: rx.clone(), queue: queue.clone()};
+    let listener = ChangeListener {queue: queue.clone()};
     tokio::spawn(async move {
         loop {
             if let Some(change) = queue.pop() {
