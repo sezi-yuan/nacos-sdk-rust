@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use crossbeam::queue::SegQueue;
 use nacos_naming_client:: {
     NamingClient, HttpNamingRemote, NamingConfig, constants, ServerConfig,
     ServiceChangeListener, model::Instance,
@@ -62,12 +65,13 @@ fn parse_bool_env(key: &str, default: bool) -> bool {
     }).unwrap_or(default)
 }
 struct ChangeListener {
-    rx: tokio::sync::mpsc::Sender<Change<String, Endpoint>>
+    rx: tokio::sync::mpsc::Sender<Change<String, Endpoint>>,
+    queue: Arc<SegQueue<Change<String, Endpoint>>>,
 }
 
 #[async_trait]
 impl ServiceChangeListener for ChangeListener {
-    async fn changed(&mut self, service_name: &str, hosts: Vec<Instance>) {
+    async fn changed(&self, service_name: &str, hosts: Vec<Instance>) {
         log::debug!("obtain service[{}] change from nacos: {:?}", service_name, hosts);
         for mut instance in hosts {
             let port = instance.metadata.remove("gRPC_port").unwrap_or(instance.port.to_string());
@@ -86,18 +90,30 @@ impl ServiceChangeListener for ChangeListener {
                 Change::Remove(endpoint)
             };
 
-            let res = self.rx.try_send(change);
-            if let Err(error) = res {
-                log::error!("failed to modify service's[{}] endpoint list: {}", service_name, error)
+            self.queue.push(change);
+            if self.queue.len() > 10 {
+                self.queue.pop();
             }
         }
     }
 }
 
+
+
 pub async fn gen_channel(service_name: &str) -> Channel {
     let nacos_client = NACOS_CLIENT.get().await;
-    let (channel, rx) = Channel::balance_channel(10);
-    let listener = ChangeListener {rx: rx.clone()};
+    let (channel, rx) = Channel::balance_channel(1);
+    let queue = Arc::new(SegQueue::new());
+    let listener = ChangeListener {rx: rx.clone(), queue: queue.clone()};
+    tokio::spawn(async move {
+        loop {
+            if let Some(change) = queue.pop() {
+                if let Err(error) = rx.try_send(change) {
+                    log::debug!("failed to modify endpoint list: {}", error)
+                }
+            }
+        }
+    });
     let x = nacos_client.subscribe(
         service_name, nacos_client.get_group(), vec![nacos_client.get_cluster()], listener
     ).await;

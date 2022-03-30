@@ -12,5 +12,5 @@ use async_trait::async_trait;
 
 #[async_trait]
 pub trait ServiceChangeListener: Send + Sync {
-    async fn changed(&mut self, service_name: &str, hosts: Vec<Instance>);
+    async fn changed(&self, service_name: &str, hosts: Vec<Instance>);
 }

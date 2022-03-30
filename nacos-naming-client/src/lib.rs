@@ -65,7 +65,7 @@ mod test {
 
     #[async_trait]
     impl ServiceChangeListener for Listener {
-        async fn changed(&mut self, service_name: &str, hosts: Vec<Instance>) {
+        async fn changed(&self, service_name: &str, hosts: Vec<Instance>) {
             println!("changed => {}:{:?}", service_name, hosts);
         }
     }
